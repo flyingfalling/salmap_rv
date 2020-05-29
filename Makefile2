@@ -1,0 +1,189 @@
+	
+#REV: make var=val target
+#TARGET_LIB ?= libsalmaprv.so
+#TARGET_EXEC ?= compare_cpu_gpu.exe
+
+#REV: if things break, cheak /etc/ld.conf.d/ for a file you added for
+#REV: manually installed opencv.
+
+CXX=g++ #g++-8
+CC=gcc #gcc-8
+AR=ar
+
+OCV_VERS=opencv4
+
+#CVINCL=`PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):"/usr/local/lib/pkgconfig/":"/usr/local/lib64/pkgconfig/" pkg-config --cflags $(OCV_VERS)`
+#CVSO=`PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):"/usr/local/lib/pkgconfig/":"/usr/local/lib64/pkgconfig/" pkg-config --libs $(OCV_VERS)`
+
+CVINCL=`pkg-config --cflags $(OCV_VERS)`
+CVSO=`pkg-config --libs $(OCV_VERS)`
+
+
+
+
+BUILD_BASE ?= ./build
+
+#REV: way to set this "after"
+SRC_DIRS ?= ./salmap_rv/src $(BUILD_BASE)/COMPILED_FILTERS
+INC_DIRS ?= ./salmap_rv/include ./boost
+
+MAIN_DIRS ?= ./tests
+
+LDFLAGS += $(CVSO)
+
+SHARED = -fPIC -shared
+
+
+
+INCLS := $(shell find $(INC_DIRS) -name *.hpp -or -name *.h )
+SRCS := $(shell find $(SRC_DIRS) -name *.cpp )
+
+INC_FLAGS := $(addprefix -I,$(INC_DIRS)) $(CVINCL) -I.
+CPPFLAGS ?= $(INC_FLAGS) -MMD -MP -std=c++17 -Wall -pthread -O2 -g #-Wshadow -Werror=shadow
+
+ifeq ($(MAKECMDGOALS),compare_cpu_gpu.exe)
+SRCS += ./tests/compare_cpu_gpu.cpp
+TARGET_EXEC = $(MAKECMDGOALS)
+BUILD_DIR = $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
+endif
+
+ifeq ($(MAKECMDGOALS),itti_formal.exe)
+SRCS += ./tests/itti_formal.cpp
+TARGET_EXEC = $(MAKECMDGOALS)
+BUILD_DIR = $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
+endif
+
+ifeq ($(MAKECMDGOALS),libsalmap_rv.so)
+CPPFLAGS += $(SHARED)
+TARGET_EXEC = $(MAKECMDGOALS)
+BUILD_DIR = $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
+endif
+
+ifeq ($(MAKECMDGOALS),libsalmap_rv.a)
+TARGET_EXEC = $(MAKECMDGOALS)
+BUILD_DIR = $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
+endif
+
+
+
+
+
+ifeq ($(MAKECMDGOALS),libsalmap_rv_ios.a)
+TARGET_EXEC := $(MAKECMDGOALS)
+BUILD_DIR := $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
+
+
+APPLE_OCV_PATH := /Users/riveale/Desktop/standout/opencv2.framework
+APPLE_OCV_INCL := $(APPLE_OCV_PATH)/Headers
+
+INC_FLAGS := -I. $(addprefix -I,$(INC_DIRS)) -I$(APPLE_OCV_INCL)
+
+#REV: have to include min iphone OS version since earlier than 10 does not support C++17?
+#REV: note that means that i386 processors or armv7 armv7s ;(
+
+EXTRA := -MMD -MP -Wall -pthread -O2 -std=c++17 -miphoneos-version-min=13.4 -fembed-bitcode
+
+#REV: this is binary...I'm directly linking it ;0
+APPLE_OCV_LIB = $(OCV_FRAMEWORK_PATH)/opencv2.framework
+
+
+#REV: all ipads are arm64..?
+#REV: simulator must have platform simulator
+platform := iphoneos
+target := arm64
+
+#platform := iphonesimulator
+#target := x86_64 
+
+
+#REV: I just realized that CPP means C preprocessor, not C plus plus lol
+CC := `xcrun -sdk $(platform) -find clang`
+CPP := $(CC) -E
+CXX := $(CC)
+
+sdkroot := `xcrun --sdk $(platform) --show-sdk-path`
+AR = `xcrun -sdk $(platform) -find ar`
+RANLIB :=`xcrun -sdk $(platform) -find ranlib`
+LIPO := `xcrun -sdk $(platform) -find lipo`
+
+
+CFLAGS := -arch $(target) -isysroot $(sdkroot) $(EXTRA)
+CPPFLAGS := -arch $(target) -isysroot $(sdkroot) $(EXTRA)
+LDFLAGS := -arch $(target) -isysroot $(sdkroot) $(EXTRA)
+
+
+endif
+
+
+OBJS := $(SRCS:%=$(BUILD_DIR)/%.o)
+DEPS := $(OBJS:.o=.d)
+
+
+
+
+
+
+#compare_cpu_gpu.exe: SRC_DIRS += "./tests"
+#compare_cpu_gpu.exe: TARGET_EXEC=$(MAKECMDGOALS)
+
+.PHONY: DOPRINT COMPFILTS clean
+#FORCE: DOPRINT
+
+DOPRINT:
+	@echo "SRCS: ""$(SRCS)"
+#	@echo "Trying ""$(MAKECMDGOALS)"
+	@echo "Trying ""$(TARGET_EXEC)"
+
+#COMPFILTS:
+#	@echo "Doing nothing..." #@sh filter_compiler.sh filter_stubs
+
+compare_cpu_gpu.exe: DOPRINT $(BUILD_BASE)/$(TARGET_EXEC)
+
+itti_formal.exe: DOPRINT $(BUILD_BASE)/$(TARGET_EXEC)
+
+libsalmap_rv.so: DOPRINT $(BUILD_BASE)/$(TARGET_EXEC)
+
+
+libsalmap_rv.a: DOPRINT $(OBJS)
+		$(AR) rvcs $(BUILD_BASE)/$(TARGET_EXEC) $(OBJS)
+		$(RANLIB) $(BUILD_BASE)/$(TARGET_EXEC)
+
+
+#REV: don't include the opencv2 framework...I'll include it later and let it link via swift or whatever in xcode? I can't produce a single .a now because it complains ;(
+#REV: could include ranlib run in ar run by using -s option?
+
+libsalmap_rv_ios.a: DOPRINT $(OBJS)
+		$(AR) rvc $(BUILD_BASE)/$(TARGET_EXEC) $(OBJS)
+		$(RANLIB) $(BUILD_BASE)/$(TARGET_EXEC)
+#		$(LIPO) -arch arm64 $(BUILD_BASE)/$(TARGET_EXEC) -output libsalmap_rv_all.a
+		
+# REV: static lib's global objects will not be initiated by executable if they are unreferenced.
+# REV: this breaks my auto-registration of filter functs.
+# REV: so, need to create static lib with -Wl,--whole-archive option
+# https://stackoverflow.com/questions/9459980/c-global-variable-not-initialized-when-linked-through-static-libraries-but-ok
+# REV:  also, need to turn it on/off so it only includes all for the library that needs it (i.e. always turn it off after I say, because compiler/linker will automatically add many more after it e.g. stdlib)
+itti_formal_a.exe: DOPRINT tests/itti_formal.cpp
+#		   $(CXX) $(CPPFLAGS) tests/itti_formal.cpp -o $@ $(LDFLAGS) -Wl,--whole-archive build/libsalmap_rv.a -Wl,--no-whole-archive
+		   $(CXX) $(CPPFLAGS) tests/itti_formal.cpp -o $@ build/libsalmap_rv.a
+
+$(BUILD_BASE)/$(TARGET_EXEC): COMPFILTS $(OBJS)
+	$(CXX) $(INC_FLAGS) $(CPPFLAGS) $(OBJS) -o $@ $(LDFLAGS)
+
+#$(BUILD_DIR)/$(TARGET_LIB): $(OBJS)
+#	$(CXX)  $(CPPFLAGS) $(OBJS) -o $@ $(LDFLAGS) $(CPPFLAGS)
+
+
+# c++ source
+$(BUILD_DIR)/%.cpp.o: %.cpp $(INCLS)
+	$(MKDIR_P) $(dir $@)
+	$(CXX) $(INC_FLAGS) $(CPPFLAGS) -c $< -o $@ $(LDFLAGS)
+
+
+
+clean:
+	$(RM) -r $(BUILD_BASE)
+
+-include $(DEPS)
+
+MKDIR_P ?= mkdir -p
+
