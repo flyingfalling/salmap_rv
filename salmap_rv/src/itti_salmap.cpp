@@ -325,62 +325,183 @@ param_set salmap_rv::itti_formal_1998_params( const int wid, const int fps )
 
 
 
+ 
 
-std::string INPUT( const std::string& inputname, const std::string& mapname, const std::string& timetype, const int64_t timeval, const std::string& nickname )
+grouped_input INPUT( const std::string& inputname, const std::string& mapname, const std::string& timetype, const int64_t timeval, const std::string& nickname )
 {
-  std::string s = "input:" + inputname + "=" + mapname + "@" + timetype + "@" + std::to_string(timeval) + "@" + nickname;
-  return s;
+  
+  std::string val = mapname + "@" + timetype + "@" + std::to_string(timeval) + "@" + nickname;
+  std::string name = inputname;
+  grouped_input gi( name, val );
+  return gi;
 }
 
-std::string INPUTNOW( const std::string& inputname, const std::string& mapname, const std::string& nickname )
+grouped_input INPUTNOW( const std::string& inputname, const std::string& mapname, const std::string& nickname )
 {
   return INPUT( inputname, mapname, "RELTIME", 0, nickname );
 }
 
-std::string INPUTREL( const std::string& inputname, const std::string& mapname, const std::string& nickname, const int64_t& tdelta )
+grouped_input INPUTREL( const std::string& inputname, const std::string& mapname, const std::string& nickname, const int64_t& tdelta )
 {
   return INPUT( inputname, mapname, "RELTIME", tdelta, nickname );
 }
 
+
+
+
+ 
+
+
 template <typename T>
-std::string PARAM( const std::string& inputname, const T& val )
+grouped_param PARAM( const std::string& inputname, const T& val )
 {
-  std::string s = "param:" + inputname + "=";
   std::stringstream ss;
-  
   ss << val;
-  s += ss.str();
-  return s;
+  grouped_param gp( inputname, ss.str() );
+  return gp;
 }
+
+
+template <typename T>
+grouped_param PARAM( const std::string& inputname, const T& val, const param_group pg1 )
+{
+  std::stringstream ss;
+  ss << val;
+  grouped_param gp( inputname, ss.str(), pg1 );
+
+  fprintf(stdout, "Created PARAM [%s]\n", gp.tostr().c_str() );
+  return gp;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+
+
 
 struct inputlist
 {
-  std::vector<std::string> vec;
+  std::vector<grouped_input> vec;
   
   void add( const std::string& inputname, const std::string& mapname, const std::string& timetype, const int64_t& timeval, const std::string& filtnick )
   {
-    std::string realinputname =  inputname + std::to_string(vec.size()+1) ; 
     
-    vec.push_back( INPUT( realinputname, mapname, timetype, timeval, filtnick ) );
+    
+    vec.push_back( INPUT( inputname, mapname, timetype, timeval, filtnick ) );
   }
+  
   void addnow( const std::string& inputname, const std::string& mapname, const std::string& filtnick )
   {
-    std::string realinputname =  inputname + std::to_string(vec.size()+1) ; 
     
     
-    vec.push_back( INPUTNOW( realinputname, mapname, filtnick ) );
+    
+    vec.push_back( INPUTNOW( inputname, mapname, filtnick ) );
   }
 };
 
 struct paramlist
 {
-  std::vector<std::string> vec;
+  std::vector<grouped_param> vec;
 
   template <typename T>
   void add( const std::string& paramname, const T& val )
   {
-    std::string realparamname = paramname + std::to_string(vec.size()+1); 
-    vec.push_back( PARAM<T>( realparamname, val ) );
+    
+    vec.push_back( PARAM<T>( paramname, val ) );
+  }
+
+  template <typename T>
+  void add( const std::string& paramname, const T& val, const std::string& groupname )
+  {
+    
+    vec.push_back( PARAM<T>( paramname, val, param_group(groupname) ) );
   }
 };
 
@@ -391,7 +512,10 @@ struct paramlist
 
 
 
-void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap& mysalmap, std::shared_ptr<ThreadPool> _tp=nullptr )
+
+
+
+void salmap_rv::make_itti_dyadic_cpu_weighted_formal(  const param_set& p, SalMap& mysalmap, std::shared_ptr<ThreadPool> _tp=nullptr )
 {
   
   mysalmap.init( p, _tp );
@@ -437,6 +561,8 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
    
 
   
+  
+  
   sigma_from_freq_modul( GETFLT(lum_f0_cyc_dva), GETFLT(lum_f0_mod),
 			 lum_sigdvas[0], lum_sigfs[0] );
   
@@ -447,7 +573,9 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
   
   for( size_t l=1; l<lum_nlev; ++l )
     {
-      lum_sigfs[l] = lum_sigfs[l-1]/2;
+      lum_sigfs[l] = lum_sigfs[l-1]/2; 
+      
+      
       lum_sigreps[l] = sigma_from_sigmaf(lum_sigfs[l]); 
       lum_sigdvas[l] = lum_sigreps[l];
       
@@ -461,7 +589,9 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       std::string newdesc = "Luminance Map LPF " + tostring(l);
       std::string inname = "lum" + tostring(l);
       
-      mysalmap.add_sal_filter( "lpf_gauss_sigma", newname, newdesc, INPUTNOW("input", "output", inname ), PARAM<float64_t>("sigma_dva",lum_sigdvas[l]) );
+      mysalmap.add_sal_filter( "lpf_gauss_sigma", newname, newdesc,
+			       INPUTNOW("input", "output", inname ),
+			       PARAM<float64_t>("sigma_dva",lum_sigdvas[l]) );
       
     }
 
@@ -473,12 +603,15 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       
       
       float64_t targnyquist = lum_sigfs[l-1]*GETFLT(lum_f0_nyq_mult);
-      mysalmap.add_sal_filter( "downsample_minnyquist", newname1, newdesc1, INPUTNOW("input","output",inname1), PARAM<float64_t>( "targ_nyquist_dva", targnyquist ), PARAM<float64_t>("resample_grace", GETFLT(resample_grace) ) );
+      mysalmap.add_sal_filter( "downsample_minnyquist", newname1, newdesc1, INPUTNOW("input","output",inname1), PARAM<float64_t>( "targ_nyquist_dva", targnyquist ),
+			       PARAM<float64_t>("resample_grace", GETFLT(resample_grace) ) );
       
     }
   
   inputlist lumlpfinputfilters;
-  
+
+  double lumattn = GETFLT( lum_diff_edge_attn );
+    
   for( size_t c=GETINT(lum_cstart); c<=lum_maxcenter; ++c )
     {
       
@@ -486,7 +619,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       for(size_t s=c+GETINT(lum_soffset); s<=mymaxsurr; ++s)
 	{
 	  
-	  double attenprop = 0.05;
+	  
 	  
 	  
 	  std::string diffname = tostring(c) + "-" + tostring(s);
@@ -495,7 +628,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  std::string inname1 = "lum" + tostring(c);
 	  std::string inname2 = "lum" + tostring(s);
 	  
-	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1", "output", inname1), INPUTNOW("input2", "output", inname2), PARAM<float64_t>("attenuation_width_proportion", attenprop) );
+	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1", "output", inname1), INPUTNOW("input2", "output", inname2), PARAM<float64_t>("attenuation_width_proportion", lumattn) );
 
 	  
 	  std::string dnewname = "d" + newname;
@@ -652,6 +785,10 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
   
   
 
+
+  double oriattn = GETFLT(ori_diff_edge_attn);
+
+  
   
   for( size_t l=1; l<ori_nlev; ++l )
     {
@@ -668,7 +805,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
   for(size_t diri=0; diri<GETINT(ori_n_dir); ++diri)
     {
       float64_t dir = diri * degperstep;
-      std::string dirstr = tostring(dir, 0);
+      std::string dirstr = tostring(dir, 0); 
 
       inputlist inputfilts;
       
@@ -692,7 +829,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  
 	  mysalmap.add_sal_filter( GETSTR(orient_extract_algo), newname, newdesc, INPUTNOW("input","output",inname),PARAM("f0_cyc_dva",ori_f0s[l]), PARAM("orient_theta_deg",dir), PARAM("bandwidth_octaves",GETFLT(ori_gabor_f0_bandwidth_octaves)), PARAM("prop_width_edge_atten",GETFLT(ori_gabor_prop_edge_atten)) );
 	}
-
+      
       
       
       for( size_t c=GETINT(ori_cstart); c<=ori_maxcenter; ++c )
@@ -700,7 +837,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  size_t mymaxsurr = c+GETINT(ori_soffset)+GETINT(ori_nsurr)-1;
 	  for(size_t s=c+GETINT(ori_soffset); s<=mymaxsurr; ++s)
 	    {
-	      double attenprop=0.05;
+	      
 	      std::string diffname = tostring(c) + "-" + tostring(s);
 	      std::string mapname="output";
 	      
@@ -709,7 +846,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	      std::string inname1="orient_ang" + dirstr + "_" + tostring(c);
 	      std::string inname2="orient_ang" + dirstr + "_" + tostring(s);
 	      
-	      mysalmap.add_sal_filter( "edge_attenuated_rectified_diff",newname,newdesc,INPUTNOW("input1","output",inname1),INPUTNOW("input2","output",inname2),PARAM("attenuation_width_proportion",attenprop) );
+	      mysalmap.add_sal_filter( "edge_attenuated_rectified_diff",newname,newdesc,INPUTNOW("input1","output",inname1),INPUTNOW("input2","output",inname2),PARAM("attenuation_width_proportion",oriattn) );
 
 	       
 	      std::string dnewname="d" + newname;
@@ -741,7 +878,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 		  exit(1);
 		}
 	      
-	      inputfilts.addnow( "intput","output",ndnewname );
+	      inputfilts.addnow( "input","output",ndnewname );
 	    } 
 	} 
       
@@ -884,6 +1021,9 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       mysalmap.add_sal_filter( "lpf_gauss_sigma", newname, newdesc, INPUTNOW( "input", "output", inname), PARAM("sigma_dva",col_rg_sigdvas[l]));
     }
 
+
+  double colattn = GETFLT( col_diff_edge_attn );
+  
   for( size_t l=1; l<col_rg_nlev; ++l )
     {
       std::string mapname1="output";
@@ -904,7 +1044,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       for(size_t s=c+GETINT(col_rg_soffset); s<=mymaxsurr; ++s)
 	{
 	  std::string mapname="output";
-	  double attenprop = 0.05;
+	  
 
 	  
 	  std::string diffname = tostring(c) + "-" + tostring(s);
@@ -913,7 +1053,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  std::string inname1 = "col_rg" + tostring(c);
 	  std::string inname2 = "col_rg" + tostring(s);
 	  
-	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion",attenprop) );
+	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion", colattn ) );
 
 	  
 	  std::string dnewname = "d" + newname;
@@ -1038,7 +1178,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       for(size_t s=c+GETINT(col_by_soffset); s<=mymaxsurr; ++s)
 	{
 	  std::string mapname="output";
-	  double attenprop = 0.05;
+	  
 
 	  
 	  std::string diffname = tostring(c) + "-" + tostring(s);
@@ -1047,7 +1187,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  std::string inname1 = "col_by" + tostring(c);
 	  std::string inname2 = "col_by" + tostring(s);
 	  
-	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion",attenprop) );
+	  mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion",colattn) );
 
 	  
 	  std::string dnewname = "d" + newname;
@@ -1083,6 +1223,10 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  bylpfinputfilts.addnow( "input","output",ndnewname );
 	} 
     } 
+
+
+  
+  
 
   
   mysalmap.add_sal_filter( "avg_n", "avg_nbylpf", "Average Normed B-Ys", bylpfinputfilts.vec );
@@ -1198,7 +1342,14 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
       mot_sigreps[l] = sigma_from_sigmaf(mot_sigfs[l]); 
       
       mot_sigdvas[l] = mot_sigreps[l];
+
+      
+#define DOUBLE_REICHARDT_VEL
+#ifdef DOUBLE_REICHARDT_VEL
       mot_veldvas[l] = mot_veldvas[l-1]*2;
+#else
+      mot_veldvas[l] = mot_veldvas[l-1];
+#endif
       
       
       
@@ -1240,12 +1391,14 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
   inputlist mot_all_filts;
   int64_t tdelta = -1 * mysalmap.get_dt_nsec();
 
-   
+
+  double motattn = GETFLT( mot_diff_edge_attn );
+  
   for(size_t diri=0; diri<GETINT(mot_n_dir); ++diri)
     {
       float64_t dir = diri * motdegperstep;
       std::string dirstr = tostring(dir, 0);
-
+      
       inputlist inputfilts;
       
       for( size_t l=GETINT(mot_cstart); l<mot_nlev; ++l )
@@ -1265,7 +1418,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  size_t mymaxsurr = c+GETINT(mot_soffset)+GETINT(mot_nsurr)-1;
 	  for(size_t s=c+GETINT(mot_soffset); s<=mymaxsurr; ++s)
 	    {
-	      double attenprop=0.05;
+	      
 	      std::string diffname = tostring(c) + "-" + tostring(s);
 	      std::string mapname="output";
 
@@ -1274,7 +1427,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	      std::string inname1="mot_ang" + dirstr + "_" + tostring(c);
 	      std::string inname2="mot_ang" + dirstr + "_" + tostring(s);
 	      
-	      mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion",attenprop) );
+	      mysalmap.add_sal_filter( "edge_attenuated_absolute_diff", newname, newdesc, INPUTNOW("input1","output",inname1), INPUTNOW("input2","output",inname2), PARAM("attenuation_width_proportion", motattn) );
 
 	      
 	      std::string dnewname="d" + newname;
@@ -1336,7 +1489,7 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
 	  exit(1);
 	}
 
-      mot_all_filts.addnow("intput","output",navgname);
+      mot_all_filts.addnow("input","output",navgname);
 
     } 
 
@@ -1391,27 +1544,27 @@ void salmap_rv::make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap
   
   paramlist weights;
   inputlist all_nfilts;
-
-  all_nfilts.addnow( "input","output","navg_mot_all" );
-  weights.add<float64_t>( "weight", GETFLT(w_mot) );
   
-  all_nfilts.addnow( "input","output","navg_orient_all" );
-  weights.add<float64_t>( "weight", GETFLT(w_ori) );
+  all_nfilts.addnow( "navg_mot_all","output","navg_mot_all" );
+  weights.add<float64_t>( "navg_mot_all", GETFLT(w_mot), "weight" );
   
-  all_nfilts.addnow("input","output","navg_nlumlpf" ) ;
-  weights.add<float64_t>( "weight", GETFLT(w_lum) );
+  all_nfilts.addnow( "navg_orient_all", "output","navg_orient_all" );
+  weights.add<float64_t>( "navg_orient_all", GETFLT(w_ori), "weight" );
+  
+  all_nfilts.addnow("navg_nlumlpf", "output", "navg_nlumlpf" ) ;
+  weights.add<float64_t>( "navg_nlumlpf", GETFLT(w_lum), "weight" );
 
   if( true == GETBOOL(col_sep_rgby ) )
     {
-      all_nfilts.addnow( "input","output","navg_nbylpf" );
-      weights.add<float64_t>( "weight", GETFLT( w_col_rg ) );
-      all_nfilts.addnow( "input","output","navg_nrglpf" ) ;
-      weights.add<float64_t>( "weight", GETFLT( w_col_by ) );
+      all_nfilts.addnow( "navg_nbylpf", "output","navg_nbylpf" );
+      weights.add<float64_t>( "navg_nbylpf", GETFLT( w_col_rg ), "weight" );
+      all_nfilts.addnow( "navg_nrglpf","output","navg_nrglpf" ) ;
+      weights.add<float64_t>( "navg_nrglpf", GETFLT( w_col_by ), "weight" );
     }
   else
     {
-      all_nfilts.addnow( "input","output","navg_col" ) ;
-      weights.add<float64_t>( "weight", GETFLT( w_col ) );
+      all_nfilts.addnow( "navg_col","output","navg_col" ) ;
+      weights.add<float64_t>( "navg_col", GETFLT( w_col ), "weight" );
     }
   
   

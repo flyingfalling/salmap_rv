@@ -24,13 +24,13 @@ cv::addWeighted( gi->cpu(), 0.5, bi->cpu(), 0.5, 0, scratch.cpu_w("g+b/2") );
 cv::addWeighted( ri->cpu(), 0.5, bi->cpu(), 0.5, 0, scratch.cpu_w("r+b/2") );
 cv::addWeighted( ri->cpu(), 0.5, gi->cpu(), 0.5, 0, scratch.cpu_w("r+g/2") );
 
-cv::subtract( scratch.cpu("rcolor"), scratch.cpu("g+b/2"), rout->cpu_w() );
-cv::subtract( scratch.cpu("gcolor"), scratch.cpu("r+b/2"), gout->cpu_w() );
-cv::subtract( scratch.cpu("bcolor"), scratch.cpu("r+g/2"), bout->cpu_w() );
+cv::subtract( ri->cpu(), scratch.cpu("g+b/2"), rout->cpu_w() );
+cv::subtract( gi->cpu(), scratch.cpu("r+b/2"), gout->cpu_w() );
+cv::subtract( bi->cpu(), scratch.cpu("r+g/2"), bout->cpu_w() );
 
 cv::absdiff( ri->cpu(), gi->cpu(), scratch.cpu_w( "abs(r-g)" ) );
 
-cv::addWeighted( scratch.cpu("bcolor"), -1.0, scratch.cpu("abs(r-g)"), -1.0, 0, yout->cpu_w() );
+cv::addWeighted( bout->cpu(), -1.0, scratch.cpu("abs(r-g)"), -1.0, 0, yout->cpu_w() );
 
 cv::divide( rout->cpu(), scratch.cpu("lum3"), rout->cpu_w() );
 cv::divide( gout->cpu(), scratch.cpu("lum3"), gout->cpu_w() );

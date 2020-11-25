@@ -17,7 +17,7 @@ namespace salmap_rv {
     std::string name; 
     algorithmImpl algorithm;  
     
-    std::map<std::string,std::string> inputs; 
+    std::map<std::string,std::string> inputs;
     
     std::map<std::string,compiled_map> compiled_inputs;
 
@@ -30,7 +30,11 @@ namespace salmap_rv {
     bool collection_compiled;
 
     std::map<std::string, std::shared_ptr<FeatMapImplInst>> localinputs;
+
+    void set_param( const std::string& fullparamname, const std::string& newval ); 
     
+    std::map<std::string,std::string> get_params( ) const;
+      
     std::string toString( const FilterSet& fs ) const;
     void clear();
     FeatFilterImpl();

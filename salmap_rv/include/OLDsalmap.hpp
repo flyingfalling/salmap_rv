@@ -86,12 +86,8 @@ namespace salmap_rv
     
     
     
-
-
-    const double get_input_pix_per_dva_wid() const;
-    const double get_input_pix_per_dva_hei() const;
-    const double get_input_pix_per_dva() const;
     
+
     const bool was_updated() const;
     
     const int64_t get_dt_nsec() const;
@@ -212,15 +208,6 @@ namespace salmap_rv
     
     taggraph taggraph_from_salmap();
 
-
-
-
-    std::map<std::string,std::string> get_params( const std::string& filternick );
-
-    
-    void set_param( const std::string& filternick, const std::string& fullparamname, const std::string& newval );
-    
-
   private:
     void setup_input( const std::string& localname, const cv::Mat& data );
     void set_direct(const std::string& localname, const cv::Mat& data);
@@ -236,6 +223,22 @@ namespace salmap_rv
 
 
 
+template <typename T>
+void salmap_rv::SalMap::set_filt_input_params( FeatFilter& f, const T& t )
+{
+  
+  set_filt_input_param( f, t ); 
+}
+
+
+template <typename T, typename T2, typename ...Rest>
+void salmap_rv::SalMap::set_filt_input_params( FeatFilter& f, const T& t, const T2& t2, Rest... rest)
+{
+  
+  
+  set_filt_input_param( f, t );
+  set_filt_input_params( f, t2, rest... );
+}
   
   
 
@@ -261,7 +264,6 @@ std::string salmap_rv::SalMap::add_sal_filter( const std::string& algname, const
   f.nickname = nickname;
   f.desc = prettydesc;
   f.algorithm = algname;
-
   
   set_filt_input_params( f, args... );
 	

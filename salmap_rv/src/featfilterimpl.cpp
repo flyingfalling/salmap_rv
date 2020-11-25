@@ -104,7 +104,8 @@ bool salmap_rv::FeatFilterImpl::check_fill_inputs( const std::shared_ptr<FeatMap
   
   
   bool success=true;
-        
+
+  
   for( size_t x=0; x<ptrinputs.size(); ++x)
     {
 
@@ -130,7 +131,7 @@ bool salmap_rv::FeatFilterImpl::check_fill_inputs( const std::shared_ptr<FeatMap
 	  cv::Size tmp = retlocalinputs[ptrinputs[x].arg_name_I_represent() ]->size();
 	  if( tmp.width <= 0 || tmp.height <= 0 )
 	    {
-	      fprintf(stderr, "REV: WARNING: input check_fill_inputs, [%s]: input [%s] is SIZE ZERO (dummy?)!\n", name.c_str(), ptrinputs[x].arg_name_I_represent().c_str() );
+	      fprintf(stderr, "REV: WARNING: input check_fill_inputs, [%s]: input [%s] is SIZE ZERO (dummy?)! (curr time [%ld] nsec)\n", name.c_str(), ptrinputs[x].arg_name_I_represent().c_str(), curr_time );
 	      
 	    }
 	}
@@ -157,7 +158,7 @@ bool salmap_rv::FeatFilterImpl::update( const std::shared_ptr<FeatMapImplSet>& m
 #endif
 					)
 {
-  
+
   compile( filtimpls, fs, mapsetptr ); 
   
   std::shared_ptr<FeatMapImplCollection> mycol = ptrcollection.getCollection();
@@ -181,6 +182,8 @@ bool salmap_rv::FeatFilterImpl::update( const std::shared_ptr<FeatMapImplSet>& m
   
   if( inputsexist )
     {
+      
+      
       DEBUGPRINTF(stdout, "Attempting update algo [%s]\n", algorithm.name.c_str() );
       algorithm.update( localinputs, mycol, curr_time, name
 #ifdef GPU
@@ -206,6 +209,15 @@ bool salmap_rv::FeatFilterImpl::update( const std::shared_ptr<FeatMapImplSet>& m
     
 }
 
+std::map<std::string,std::string> salmap_rv::FeatFilterImpl::get_params( ) const
+{
+  return algorithm.get_params();
+}
+  
+void salmap_rv::FeatFilterImpl::set_param( const std::string& fullparamname, const std::string& newval )
+{
+  algorithm.set_param(fullparamname, newval);
+}
 
 
   

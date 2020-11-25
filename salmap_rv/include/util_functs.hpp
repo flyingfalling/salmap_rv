@@ -206,6 +206,424 @@ namespace salmap_rv
   void recursive_downsize_2mat_optim( const salmap_rv::FiltMat& i, salmap_rv::FiltMat& m1, salmap_rv::FiltMat& m2,
 				      const std::vector<cv::Size>& sizes, const std::vector<float64_t>& pixperdvas, const std::vector<float64_t>& blurwidths_dva,
 				      const int interp );
+
+
+
+
+  
+  
+  
+
+  
+  
+  
+
+
+  
+  const std::string PARAM_GRP_PREFIX_CONNECTOR = "-->";
+  const std::string PARAM_GRP_CONJUNCTION_SEP = "+++";
+
+  struct param_group
+  {
+    std::vector<std::string> data;
+
+    
+    
+    
+    
+    
+    
+    
+    
+    template <class ...Ts> 
+    param_group( Ts... rest ) : data{ rest... }
+    {
+      
+      bool include_empty_repeats = true;
+      std::vector<std::string>  newdata;
+      
+      for( auto& s1 : data )
+	{
+	  std::vector<std::string> separated = tokenize_string( s1, PARAM_GRP_PREFIX_CONNECTOR, include_empty_repeats );
+	  for( auto& s2 : separated )
+	    {
+	      newdata.push_back( s2 );
+	      if( s2.empty() )
+		{
+		  fprintf(stderr, "Empty grp name detected (double repeat?)\n");
+		  exit(1);
+		}
+	    }
+	}
+    }
+
+    
+    
+    std::string tostr() const
+    {
+      std::string s = "";
+      if( data.size() > 0 )
+	{
+	  s += data[0];
+	  for( size_t x=1; x<data.size(); ++x )
+	    {
+	      s += PARAM_GRP_PREFIX_CONNECTOR + data[x];
+	    }
+	}
+      return s;
+    }
+
+    bool is_same_or_more_specific_than( const param_group& pg2 ) const
+    {
+      if( data.size() >= pg2.data.size() )
+	{
+	  for( size_t a = 0; a<pg2.data.size(); ++a )
+	    {
+	      
+	      if( 0 != pg2.data[a].compare( data[a] ) )
+		{
+		  return false;
+		}
+	    }
+	  return true;
+	}
+      else
+	{
+	  return false;
+	}
+    }
+  };
+  
+  
+  
+
+
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+
+  
+  
+  struct grouped_param
+  {
+    std::vector<param_group> groups;
+    std::string name;
+    std::string value;
+
+    
+    bool in_group( const std::string& targgrp )
+    {
+      param_group pg( targgrp );
+      return in_group( pg );
+    }
+
+    std::string getfullname() const
+    {
+      std::string s = "";
+      for( auto& grp : groups )
+	{
+	  s += grp.tostr() + PARAM_GRP_CONJUNCTION_SEP;
+	}
+      s += name;
+      return s;
+    }
+
+    template <typename T>
+    T getvalue() const
+    {
+      T ret;
+      std::stringstream ss( value );
+      ss >> ret;
+      return ret;
+    }
+    
+    bool in_group( const param_group pg )
+    {
+      for( auto& g : groups )
+	{
+	  bool yes = g.is_same_or_more_specific_than( pg );
+	  if( true == yes )
+	    {
+	      return true;
+	    }
+	}
+      return false;
+    }
+      
+    
+    std::string tostr()
+    {
+      std::string s = "";
+      for( auto& grp : groups )
+	{
+	  s += grp.tostr() + PARAM_GRP_CONJUNCTION_SEP;
+	}
+      s += name + "=" + value;
+      return s;
+    };
+
+    grouped_param( const std::string& fullstr )
+    {
+      bool include_empty_repeats = false;
+      std::vector<std::string> separated = tokenize_string( fullstr, PARAM_GRP_CONJUNCTION_SEP, include_empty_repeats );
+
+      
+      
+      if( separated.size() < 1 )
+	{
+	  fprintf(stderr, "contained nothing... wtf?");
+	  exit(1);
+	}
+      else
+	{
+	  for( size_t x=0; x<separated.size()-1; ++x )
+	    {
+	      std::string str = separated[x];
+	      if( str.empty() )
+		{
+		  fprintf(stderr, "input grp separated contained empty repeat [%s]\n", fullstr.c_str() );
+		  exit(1);
+		}
+	      else
+		{
+		  groups.push_back( param_group( separated[x] ) );
+		}
+	    }
+	  
+	  std::string nameval = separated.back();
+	  const std::string sep="=";
+	  std::vector<std::string> namevaltok = tokenize_string( nameval, sep, include_empty_repeats );
+	  if( namevaltok.size() == 0 )
+	    {
+	      
+	      fprintf(stderr, "(grp param) namevaltok < 1\n");
+	      exit(1);
+	    }
+	  if( namevaltok.size() > 0 )
+	    {
+	      name = namevaltok[0];
+	      
+	      if( name.empty() ) { fprintf(stderr, "Name empty\n"); exit(1); }
+	      
+	    }
+	  if( namevaltok.size() > 1 )
+	    {
+	      value = namevaltok[1];
+	      if( value.empty() ) {  fprintf(stderr, "Value empty\n"); exit(1); }
+	    }
+	  if( namevaltok.size() > 2 )
+	    {
+	      fprintf(stderr, "Namevaltok > 2?\n");
+	      exit(1);
+	    }
+	}
+    } 
+    
+    
+    
+     
+
+    
+    
+    
+    
+    template <class ...Ts>
+    grouped_param( const std::string& _name, const std::string& _value, Ts... rest ) : groups{  rest... }
+    {
+      
+      for( size_t x=0; x<groups.size(); ++x )
+	{
+	  
+	}
+      name = _name;
+      value = _value;
+    }
+    
+  }; 
+
+
+
+  
+  struct grouped_input
+  {
+    std::vector<param_group> groups;
+    std::string name; 
+    std::string value;
+
+
+    std::string getname() const
+    {
+      return name;
+    }
+
+    std::string getfullname() const
+    {
+      std::string s = "";
+      for( auto& grp : groups )
+	{
+	  s += grp.tostr() + PARAM_GRP_CONJUNCTION_SEP;
+	}
+      s += name;
+      return s;
+    }
+    
+    
+    bool in_group( const std::string targgrp )
+    {
+      param_group pg( targgrp );
+      return in_group( pg );
+    }
+    
+    bool in_group( const param_group& pg )
+    {
+      for( auto& g : groups )
+	{
+	  bool yes = g.is_same_or_more_specific_than( pg );
+	  if( true == yes )
+	    {
+	      return true;
+	    }
+	}
+      return false;
+    }
+      
+    
+    std::string tostr()
+    {
+      std::string s = "";
+      for( auto& grp : groups )
+	{
+	  s += grp.tostr() + PARAM_GRP_CONJUNCTION_SEP;
+	}
+      s += name + "=" + value;
+      return s;
+    };
+
+
+     
+    
+    
+    
+    grouped_input( const std::string& _name )
+    {
+      
+      bool include_empty_repeats = false;
+      std::vector<std::string> separated = tokenize_string( _name, PARAM_GRP_CONJUNCTION_SEP, include_empty_repeats );
+      
+      if( separated.size() < 1 )
+	{
+	  fprintf(stderr, "contained nothing... wtf?");
+	  exit(1);
+	}
+      else
+	{
+	  for( size_t x=0; x<separated.size()-1; ++x )
+	    {
+	      std::string str = separated[x];
+	      if( str.empty() )
+		{
+		  fprintf(stderr, "input grp separated contained empty repeat [%s]\n", _name.c_str() );
+		  exit(1);
+		}
+	      else
+		{
+		  groups.push_back( param_group( separated[x] ) );
+		}
+	    }
+	  
+	  std::string nameval = separated.back();
+	  const std::string sep="=";
+	  std::vector<std::string> namevaltok = tokenize_string( nameval, sep, include_empty_repeats );
+
+	  if( namevaltok.size() == 0 )
+	    {
+	      fprintf(stderr, "(grp input) namevaltok < 1\n");
+	      exit(1);
+	    }
+	  if( namevaltok.size() > 0 )
+	    {
+	      name = namevaltok[0];
+	      
+	      if( name.empty() ) { fprintf(stderr, "Name empty\n"); exit(1); }
+	      
+	    }
+	  if( namevaltok.size() > 1 )
+	    {
+	      value = namevaltok[1];
+	      if( value.empty() ) {  fprintf(stderr, "Value empty\n"); exit(1); }
+	    }
+	  if( namevaltok.size() > 2 )
+	    {
+	      fprintf(stderr, "Namevaltok > 2?\n");
+	      exit(1);
+	    }
+	  
+	}
+    } 
+
+    
+    
+    
+
+     
+
+    
+    template <class ...Ts>
+    grouped_input( const std::string& _name, const std::string& _value, Ts... rest ) : groups{ rest... }
+    {
+      name = _name;
+      value = _value;
+    }
+    
+  };  
+
+
+  
+  template <class ...Rest>
+  void set_filt_input_params( FeatFilter& f, grouped_param gp, Rest... rest);
+
+  template <class ...Rest>
+  void set_filt_input_params( FeatFilter& f, grouped_input gi, Rest... rest);
+
+  template <class ...Rest>
+  void set_filt_input_params( FeatFilter& f, std::vector<grouped_param> gpv, Rest... rest);
+  
+  template <class ...Rest>
+  void set_filt_input_params( FeatFilter& f, std::vector<grouped_input> giv, Rest... rest);
+  
+  
+  
+  void set_filt_input_params( FeatFilter& f );
+
+  void set_filt_input( FeatFilter& f, grouped_input gi );
+
+  void set_filt_param( FeatFilter& f, grouped_param gp );
+
+
+
+
+  
+  template <typename T>
+  std::vector<std::string> raw_params_from_group( const std::map<std::string,T>& paramsmap, const param_group targpg );
+
+  template <typename T>
+  std::map<std::string,std::string> flat_raw_params_from_group( const std::map<std::string,T>& paramsmap, const param_group targpg );
+
+  
+  template <typename T>
+  std::vector<std::string> raw_inputs_from_group( const std::map<std::string,T>& inputsmap, const param_group targpg );
+
+  template <typename T>
+  std::map<std::string,std::string> flat_raw_inputs_from_group( const std::map<std::string,T>& inputsmap, const param_group targpg );
+
+    
 } 
 
 
@@ -306,4 +724,129 @@ T& salmap_rv::get_from_dict_or_fail( std::map<std::string,T>& dict, const std::s
   
   
   return it->second;
+}
+
+
+
+
+template <typename ...Rest>
+void salmap_rv::set_filt_input_params( FeatFilter& f, grouped_param gp, Rest... rest)
+{
+  
+  set_filt_param( f, gp );
+  set_filt_input_params( f, rest... );
+}
+
+template <typename ...Rest>
+void salmap_rv::set_filt_input_params( FeatFilter& f, std::vector<grouped_param> gpv, Rest... rest)
+{
+  
+  for( auto& gp : gpv )
+    {
+      set_filt_param( f, gp );
+    }
+  set_filt_input_params( f, rest... );
+}
+
+template <typename ...Rest>
+void salmap_rv::set_filt_input_params( FeatFilter& f, std::vector<grouped_input> giv, Rest... rest)
+{
+  
+
+  fprintf(stdout, "Calling with INPUT vector with size [%ld]\n", giv.size() );
+  for( auto& gi : giv )
+    {
+      set_filt_input( f, gi );
+    }
+  set_filt_input_params( f, rest... );
+}
+
+template <typename ...Rest>
+void salmap_rv::set_filt_input_params( FeatFilter& f, grouped_input gi, Rest... rest)
+{
+  
+  set_filt_input( f, gi );
+  set_filt_input_params( f, rest... );
+}
+
+
+
+
+
+
+template <typename T>
+std::vector<std::string> salmap_rv::raw_params_from_group( const std::map<std::string,T>& paramsmap, const param_group targpg )
+{
+  std::vector<std::string> res;
+  for( auto it=paramsmap.begin(); it != paramsmap.end(); ++it )
+    {
+      grouped_param gp( it->first );
+      if( gp.in_group( targpg ) )
+	{
+	  res.push_back( it->first );
+	}
+    }
+  return res;
+}
+
+
+template <typename T>
+std::vector<std::string> salmap_rv::raw_inputs_from_group( const std::map<std::string,T>& inputsmap, const param_group targpg )
+{
+  std::vector<std::string> res;
+  for( auto it=inputsmap.begin(); it != inputsmap.end(); ++it )
+    {
+      grouped_input gp( it->first );
+      if( gp.in_group( targpg ) )
+	{
+	  res.push_back( it->first );
+	}
+    }
+  return res;
+}
+
+
+
+
+template <typename T>
+std::map<std::string,std::string> salmap_rv::flat_raw_params_from_group( const std::map<std::string,T>& paramsmap, const param_group targpg )
+{
+  std::map<std::string,std::string> res;
+  for( auto it=paramsmap.begin(); it != paramsmap.end(); ++it )
+    {
+      grouped_param gp( it->first );
+      if( gp.in_group( targpg ) )
+	{
+	  auto found = res.find( gp.name );
+	  if( found != res.end() )
+	    {
+	      fprintf(stderr, "Flat raw params from grp: more than one flat param name found\n");
+	      exit(1);
+	    }
+	  res[gp.name] = it->first;
+	}
+    }
+  return res;
+}
+
+
+template <typename T>
+std::map<std::string,std::string> salmap_rv::flat_raw_inputs_from_group( const std::map<std::string,T>& inputsmap, const param_group targpg )
+{
+  std::map<std::string,std::string> res;
+  for( auto it=inputsmap.begin(); it != inputsmap.end(); ++it )
+    {
+      grouped_input gi( it->first );
+      if( gi.in_group( targpg ) )
+	{
+	  auto found = res.find( gi.name );
+	  if( found != res.end() )
+	    {
+	      fprintf(stderr, "Flat raw inputs from grp: more than one flat param name found\n");
+	      exit(1);
+	    }
+	  res[gi.name] = it->first;
+	}
+    }
+  return res;
 }

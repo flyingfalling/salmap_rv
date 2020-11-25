@@ -382,7 +382,6 @@ int main(int argc, char** argv)
       
       frame = cv::imread( fname );
       frame_wid = frame.size().width;
-      exit(1);
     }
   
   
@@ -399,13 +398,24 @@ int main(int argc, char** argv)
   p.set<int64_t>("nsalthreads", 3);
 
   
+    
+  
   if( false == paramsfile.empty() )
     {
+      fprintf(stdout, "Loading paramsfile!\n");
       p.fromfile( paramsfile );
+    }
+
+  if( dva_image > 0 )
+    {
+      fprintf(stdout, "OVERWRITING paramfile dva to [%lf]\n", dva_image);
+      p.set<float64_t>( "input_dva_wid", dva_image );
     }
   
   p.enumerate();
   
+
+  fprintf(stdout, "Will now make it!\n");
   SalMap cpusalmap;
   make_itti_dyadic_cpu_weighted_formal( p, cpusalmap, nullptr );
   fprintf(stdout, "Made it, now run\n");
@@ -475,11 +485,8 @@ int main(int argc, char** argv)
 	      return 0;
 	    }
 	}
+      frame1 = frame;
       
-      
-	  frame1 = frame;
-	  
-
       cv::Mat frame2;
       size_t targwid=640;
       double ratio = (double)frame.size().height / frame.size().width;
@@ -532,13 +539,98 @@ int main(int argc, char** argv)
 	  bool gotmot = cpusalmap.mapFromAccessor( motfp, finmot, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
 	  bool gotfin = cpusalmap.mapFromAccessor( finfp, finfin, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
 
-	  if( false && showme )
+	  bool show = false;
+	  if( show && showme )
 	    {
 	      if( gotori )
 		{
 		  cv::Mat ori;
 		  cv::resize( finori->cpu(), ori, targsize );
 		  fprintf(stdout, "Ori size %d %d\n", ori.size().width, ori.size().height);
+
+		  
+		  
+		  
+		  
+		  FeatMapImplPtr o_0 = cpusalmap.getMapAccessor( "output", "navg_norient_0" );
+		  FeatMapImplPtr o_45 = cpusalmap.getMapAccessor( "output", "navg_norient_45" );
+		  FeatMapImplPtr o_90 = cpusalmap.getMapAccessor( "output", "navg_norient_90" );
+		  FeatMapImplPtr o_135 = cpusalmap.getMapAccessor( "output", "navg_norient_135" );
+
+		  FeatMapImplPtr oavg = cpusalmap.getMapAccessor( "output", "avg_orient_all" );
+		  FeatMapImplPtr onavg = cpusalmap.getMapAccessor( "output", "navg_orient_all" );
+		  
+		  
+		  std::shared_ptr<FeatMapImplInst> ori_1_0, ori_1_45, ori_1_90, ori_1_135, oavgp, onavgp;
+		  cpusalmap.mapFromAccessor( o_0, ori_1_0, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+		  cpusalmap.mapFromAccessor( o_45, ori_1_45, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+		  cpusalmap.mapFromAccessor( o_90, ori_1_90, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+		  cpusalmap.mapFromAccessor( o_135, ori_1_135, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+		  cpusalmap.mapFromAccessor( oavg, oavgp, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+		  cpusalmap.mapFromAccessor( onavg, onavgp, cpusalmap.get_time_nsec() - cpusalmap.get_dt_nsec() );
+
+
+		  
+		  cv::Mat o0m =  ori_1_0->cpu();
+		  cv::Mat o45m =  ori_1_45->cpu();
+		  cv::Mat o90m =  ori_1_90->cpu();
+		  cv::Mat o135m =  ori_1_135->cpu();
+
+		  cv::Mat oavgm =  oavgp->cpu();
+		  cv::Mat onavgm =  onavgp->cpu();
+
+
+		  cv::resize( o0m, o0m, o0m.size()*8 );
+		  cv::resize( o45m, o45m, o45m.size()*8 );
+		  cv::resize( o90m, o90m, o90m.size()*8 );
+		  cv::resize( o135m, o135m, o135m.size()*8 );
+
+		  cv::resize( oavgm, oavgm, oavgm.size()*8 );
+		  cv::resize( onavgm, onavgm, onavgm.size()*8 );
+		  
+		  double min=1000000,max=-1000000;
+		  double fmin=1000000,fmax=-1000000;
+
+		  cv::minMaxLoc(o0m, &min, &max);
+		  if( min < fmin ) fmin = min;
+		  if( max > fmax ) fmax = max;
+
+		  cv::minMaxLoc(o45m, &min, &max);
+		  if( min < fmin ) fmin = min;
+		  if( max > fmax ) fmax = max;
+
+		  cv::minMaxLoc(o90m, &min, &max);
+		  if( min < fmin ) fmin = min;
+		  if( max > fmax ) fmax = max;
+
+		  cv::minMaxLoc(o135m, &min, &max);
+		  if( min < fmin ) fmin = min;
+		  if( max > fmax ) fmax = max;
+
+		  
+
+		  double range = fmax - fmin;
+
+		  o0m /= range;
+		  o0m += 0.5;
+
+		  o45m /= range;
+		  o45m += 0.5;
+
+		  o90m /= range;
+		  o90m += 0.5;
+
+		  o135m /= range;
+		  o135m += 0.5;
+		  
+		  cv::imshow( "Ori_0_0", o0m );
+		  cv::imshow( "Ori_0_45", o45m );
+		  cv::imshow( "Ori_0_90", o90m );
+		  cv::imshow( "Ori_0_135", o135m );
+
+		  cv::imshow( "Ori_AVG", oavgm );
+		  cv::imshow( "Ori_NORM_AVG", onavgm );
+		  
 		  cv::imshow( "Ori", ori );
 		}
 	      if( gotlum )
@@ -570,7 +662,7 @@ int main(int argc, char** argv)
 	      
 	      cv::imshow( "Raw", inframe );
 	  
-	    }
+	    } 
 	      
 	  
 	  
@@ -606,7 +698,7 @@ int main(int argc, char** argv)
 		{
 		  if( false == vw.isOpened() )
 		    {
-		      std::string s="h264"; 
+		      std::string s="mp4v"; 
 		      if(s.size() < 4 ) { fprintf(stderr, "fourcc needs 4 chars\n"); exit(1); }
 		      auto my4cc = cv::VideoWriter::fourcc(s[0], s[1], s[2], s[3]);
 		      
@@ -674,7 +766,35 @@ int main(int argc, char** argv)
 		  }
 		  
 		  cv::imshow("Combined", combined);
-		  char key = cv::waitKey(1);
+		  char key = cv::waitKey(0);
+
+
+		  
+		  if( framen == 20 )
+		    {
+		      fprintf(stdout, "Testing changing weight of color to zero\n");
+		      std::string targfilt = "finavg";
+		      auto params = cpusalmap.get_params( targfilt );
+		      for( auto it = params.begin(); it != params.end(); ++it )
+			{
+			  fprintf(stdout, "[%s] == [%s]\n", it->first.c_str(), it->second.c_str() );
+			}
+		      auto flatmap = flat_raw_params_from_group( params, param_group("weight") );
+		      std::string targparam="navg_col";
+		      auto it = flatmap.find( targparam );
+		      if( it == flatmap.end() )
+			{
+			  fprintf(stderr, "REV: wtf flatmap has no avgcol?\n");
+			  exit(1);
+			}
+		      std::string fullparamname = it->second;
+		      cpusalmap.set_param( targfilt, fullparamname, "0.0" ); 
+
+		      for( auto it = params.begin(); it != params.end(); ++it )
+			{
+			  fprintf(stdout, "[%s] == [%s]\n", it->first.c_str(), it->second.c_str() );
+			}
+		    }
 		  if( key == 'q' )
 		    {
 		      fprintf(stdout, "User pressed [q], exiting\n");
@@ -697,7 +817,7 @@ int main(int argc, char** argv)
 			  h5io->dsread( retmat, dataset_name, offset, counts );
 			  retmat = retmat.reshape( 0, std::vector<int>( { sizes[1], sizes[2]} ) );
 			  cv::imshow( "H5 Img", retmat );
-			  int key2 = cv::waitKey(1);
+			  int key2 = cv::waitKey(0);
 			  if( key == 'd' )
 			    {
 			      fprintf(stdout, "again lol\n");

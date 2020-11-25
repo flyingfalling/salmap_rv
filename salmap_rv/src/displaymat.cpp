@@ -67,7 +67,7 @@ void displaymat::update( SalMap& salmap )
 	  gotoutputs = true;
 	  if( outputs.size() < 1 )
 	    {
-	      fprintf(stderr, "REV: error, filter [%s] has no outputs?\n");
+	      fprintf(stderr, "REV: error, filter [%s] has no outputs?\n", f.nickname.c_str());
 	      exit(1);
 	    }
 	  outputname = outputs.front();

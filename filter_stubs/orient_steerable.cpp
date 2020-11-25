@@ -105,6 +105,13 @@ if( false == scratch.initialized() )
     kern.copyTo(scratch.cpu_w("kern"));
 #endif
 
+    
+    
+    
+    
+    
+
+    
     float64_t attensize_pix = atten_size_prop * f0_lambda_pix;
     
     scratch.float64("sig_pix") = xsigma_pix;

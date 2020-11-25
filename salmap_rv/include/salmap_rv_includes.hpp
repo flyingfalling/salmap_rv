@@ -46,6 +46,9 @@
 #include <opencv2/opencv.hpp>
 
 
+#include <json/json.hpp>
+
+
 #ifdef USE_OPENCL
 #include <opencv2/core/ocl.hpp>
 #endif

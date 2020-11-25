@@ -19,6 +19,9 @@
 
 #define MULTITHREAD TRUE 
 #define DEBUGLEVEL 0
+
+
+
 #define HELPLEVEL 6
 #define TIMINGLEVEL 0
 
@@ -45,7 +48,7 @@
 #ifdef GPU
 #define SALMAP_FUNCT( name )  void name( localmapdict& inputmaps, std::shared_ptr<FeatMapImplCollection>& outputcollection, void*& userdata, scratchmats& scratch, const std::map<std::string,std::string>& params, const int64_t& curr_time , const std::string& nickname, const std::string& desc, cv::cuda::Stream& stream  )
 #else
-#define SALMAP_FUNCT( name )  void name( localmapdict& inputmaps, std::shared_ptr<FeatMapImplCollection>& outputcollection, void*& userdata, scratchmats& scratch, const std::map<std::string,std::string>& params, const int64_t& curr_time , const std::string& nickname, const std::string& desc)
+#define SALMAP_FUNCT( name )  void name( localmapdict& inputmaps, std::shared_ptr<FeatMapImplCollection>& outputcollection, void*& userdata, scratchmats& scratch, const std::map<std::string,std::string>& params, const int64_t& curr_time , const std::string& nickname, const std::string& desc )
 #endif
 
 
@@ -53,7 +56,6 @@
 
 #define SAL_DO_CAT(A, B) A##B
 #define SAL_CAT(A, B) SAL_DO_CAT(A, B)
-
 
 
 

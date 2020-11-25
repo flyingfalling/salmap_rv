@@ -7,14 +7,14 @@
 
 namespace salmap_rv
 {
-
-struct FeatFilterImplSet {
-std::map<std::string, FeatFilterImpl> filters; 
-void clear();
-std::map<std::string,FeatFilterImpl>::iterator addFilter( FeatFilter& f, algorithmImplSet& algs );
-bool getFilter( FeatFilter& f, FeatFilterImpl& fret );
-bool getFilter( FeatFilter& f, FeatFilterImpl*& fret );
-bool getFilter( const std::string& n, FeatFilterImpl& fret );
-bool getFilter( const std::string& n, FeatFilterImpl*& fret );
-};
+  struct FeatFilterImplSet
+  {
+    std::map<std::string, FeatFilterImpl> filters; 
+    void clear();
+    std::map<std::string,FeatFilterImpl>::iterator addFilter( FeatFilter& f, algorithmImplSet& algs );
+    bool getFilter( FeatFilter& f, FeatFilterImpl& fret );
+    bool getFilter( FeatFilter& f, FeatFilterImpl*& fret );
+    bool getFilter( const std::string& n, FeatFilterImpl& fret );
+    bool getFilter( const std::string& n, FeatFilterImpl*& fret );
+  };
 }

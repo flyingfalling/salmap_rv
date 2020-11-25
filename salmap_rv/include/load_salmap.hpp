@@ -18,8 +18,8 @@ namespace salmap_rv
     SalMap & current();
     std::list<std::string> get_avail_maps();
     salmap_loader();
-    void init( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp=nullptr );
+    void init( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp=nullptr, const std::string& param_fname="" );
     void select_salmap( const std::string& name );
-    void register_default_salmaps( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp );
+    void register_default_salmaps( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp, const std::string& param_fname );
   };
 }

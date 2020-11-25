@@ -50,7 +50,7 @@ void* salmap_ptr_init( const std::string& _paramset_fname, const float64_t input
     std::string inputmapname( _inputmapname );
     SalMap* salmap = (SalMap*) _salmap;
     
-    fflush(stderr);
+    
     salmap->add_input_direct_realtime( inputmapname, inputmat, salmap->get_realtime_sec() ); 
   }
 

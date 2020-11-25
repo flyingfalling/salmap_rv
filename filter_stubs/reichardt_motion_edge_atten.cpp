@@ -23,8 +23,10 @@ if( false == scratch.initialized() )
     float64_t speed_dva_sec = param_as_float64( params, "motion_speed_dva_per_sec" );
 
     DEBUGPRINTF(stdout, "Reichardt motion: dva wid: [%lf], pix wid [%d], dva/pix wid [%lf] (timedelta = %ld)\n", cui->get_dva_wid(), cui->size().width, cui->get_dva_per_pix_wid(), timedelta_nsec );
-    double pix_per_sec = speed_dva_sec / cui->get_dva_per_pix_wid() ; 
+    double pix_per_sec = speed_dva_sec * cui->get_pix_per_dva_wid() ; 
 
+    
+    
     
     
     
@@ -35,10 +37,12 @@ if( false == scratch.initialized() )
     double xshift_pixpertime = pix_per_timedelta * cos(angle_rad); 
 
     
+    
+    
     scratch.float64("xpix_per_nsec") = pix_per_sec/SEC_TO_NSEC * sin(angle_rad);
     scratch.float64("ypix_per_nsec") = pix_per_sec/SEC_TO_NSEC * cos(angle_rad);
     
-    HELPPRINTF(stdout, "REICHARDT MOTION (%s): will do a per dt %lf pixel shift in direction [%lf] radians (%lf deg), i.e. xshift [%lf], yshfit [%lf] (imgsize %d %d)\n", nickname.c_str(), pix_per_timedelta, angle_rad, angle_deg, yshift_pixpertime, xshift_pixpertime, cui->size().width, cui->size().height );
+    HELPPRINTF(stdout, "REICHARDT MOTION (%s): (dva/sex=[%lf]  pix/sec=[%lf]) will do a per dt %lf pixel shift in direction [%lf] radians (%lf deg), i.e. xshift [%lf], yshfit [%lf] (imgsize %d %d)\n", nickname.c_str(), speed_dva_sec, pix_per_sec, pix_per_timedelta, angle_rad, angle_deg, yshift_pixpertime, xshift_pixpertime, cui->size().width, cui->size().height );
       
     if( pix_per_timedelta < 0.0001 || pix_per_timedelta > 200 )
       {
@@ -86,7 +90,13 @@ float64_t irrelevant=-1;
 
 cv::threshold( output->cpu(), output->cpu_w(), scratch.float64("thresh"), irrelevant, cv::THRESH_TOZERO );
 
+#define MOT_EDGE_ATTENUATE false
+
+
+
+#if MOT_EDGE_ATTENUATE==false
 cv::multiply( output->cpu(), scratch.cpu("atten"), output->cpu_w() );
+#endif
 
 
 output->setMetadata( cui->get_time(), cui->get_dva_wid(), cui->get_dva_hei(), cui->get_origaspectratio_wh() );

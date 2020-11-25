@@ -59,6 +59,9 @@ namespace salmap_rv
 		 );
 
 
+    void set_param( const std::string& fullparaname, const std::string& newval );
+    std::map<std::string,std::string> get_params( ) const;
+    
     void setInit( const algoFunct_t f );
 
     void setUpdate( const algoFunct_t f );

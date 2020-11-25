@@ -11,12 +11,17 @@ CC=gcc #gcc-8
 AR=ar
 
 OCV_VERS=opencv4
+#OCV_VERS=opencv
 
 #CVINCL=`PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):"/usr/local/lib/pkgconfig/":"/usr/local/lib64/pkgconfig/" pkg-config --cflags $(OCV_VERS)`
 #CVSO=`PKG_CONFIG_PATH=$(PKG_CONFIG_PATH):"/usr/local/lib/pkgconfig/":"/usr/local/lib64/pkgconfig/" pkg-config --libs $(OCV_VERS)`
+#CVSO=`pkg-config --libs $(OCV_VERS)`
 
-CVINCL=`pkg-config --cflags $(OCV_VERS)`
-CVSO=`pkg-config --libs $(OCV_VERS)`
+# REV: := makes eval NOW (= leaves lazy)
+CVINCL:=`pkg-config --silence-errors --cflags opencv` `pkg-config --silence-errors --cflags opencv4`
+CVSO:=`pkg-config --silence-errors --libs opencv` `pkg-config --silence-errors --libs opencv4`
+
+
 
 
 
@@ -73,8 +78,11 @@ TARGET_EXEC := $(MAKECMDGOALS)
 BUILD_DIR := $(BUILD_BASE)/WORKSPACE_$(MAKECMDGOALS)
 
 
-APPLE_OCV_PATH := /Users/riveale/Desktop/standout/opencv2.framework
+#sudo xcode-select --switch /Applications/Xcode.app
+APPLE_OCV_PATH := /Users/riveale/git/standout/opencv2.framework
 APPLE_OCV_INCL := $(APPLE_OCV_PATH)/Headers
+
+#REV: for opencv 4.5, they flattened it, so had to symlink Headers/opencv2->../Headers
 
 INC_FLAGS := -I. $(addprefix -I,$(INC_DIRS)) -I$(APPLE_OCV_INCL)
 
@@ -84,7 +92,7 @@ INC_FLAGS := -I. $(addprefix -I,$(INC_DIRS)) -I$(APPLE_OCV_INCL)
 EXTRA := -MMD -MP -Wall -pthread -O2 -std=c++17 -miphoneos-version-min=13.4 -fembed-bitcode
 
 #REV: this is binary...I'm directly linking it ;0
-APPLE_OCV_LIB = $(OCV_FRAMEWORK_PATH)/opencv2.framework
+#APPLE_OCV_LIB = $(OCV_FRAMEWORK_PATH)/opencv2.framework
 
 
 #REV: all ipads are arm64..?

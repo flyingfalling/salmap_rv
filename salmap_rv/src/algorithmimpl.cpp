@@ -67,6 +67,8 @@ void salmap_rv::algorithmImpl::update( localmapdict& inputmaps, std::shared_ptr<
       {
 	
 	
+	
+	 
 	userupdate( inputmaps, outputcollection, userdata, myscratch, params, curr_time, argname, desc
 #ifdef GPU
 		    , stream
@@ -158,6 +160,35 @@ void salmap_rv::algorithmImpl::destroy(
 
     
   }
+
+
+void salmap_rv::algorithmImpl::set_param( const std::string& fullparamname, const std::string& newval )
+{
+  auto it = params.find(fullparamname);
+  if( params.end() == it )
+    {
+      fprintf(stderr, "algorithm impl [%s]: trying to set param [%s] (full name) but it does not exist yet?\n", name.c_str(), fullparamname.c_str() );
+      fprintf(stderr, "Note: existing params are:\n");
+      for( auto it = params.begin(); it != params.end(); ++it )
+	{
+	  fprintf(stderr,  "[%s] : [%s]\n", it->first.c_str(), it->second.c_str() );
+	}
+      exit(1);
+    }
+  else
+    {
+      
+      fprintf(stdout, "SETTING PARAM [%s] to [%s]\n", fullparamname.c_str(), newval.c_str() );
+      params[ fullparamname ] = newval;
+    }
+}
+
+
+
+std::map<std::string,std::string> salmap_rv::algorithmImpl::get_params( ) const
+{
+  return params;
+}
 
 SALMAP_FUNCT( salmap_rv::defaultInit ) {}
 

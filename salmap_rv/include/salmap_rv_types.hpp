@@ -52,6 +52,18 @@ namespace salmap_rv
   struct FuncPtrMap;
   struct FuncPtrRegistrar;
 
+
+  struct algorithm_impl_base_class;
+  struct salmap_generator_base_class;
+
+  
+  
+  
+  
+  
+  
+  
+
   
   
   namespace filter_func_dummy
@@ -67,6 +79,11 @@ namespace salmap_rv
   typedef std::map<std::string,std::string> parammap;
   typedef std::map<std::string,mapphrase> inputmap;
   typedef std::map<std::string,std::shared_ptr<FeatMapImplInst>> localmapdict;
+
+  
+  typedef std::function< std::shared_ptr<algorithm_impl_base_class>()> AlgoCreatorFunctionPtr;
+  typedef std::function< std::shared_ptr<salmap_generator_base_class>()> GeneratorCreatorFunctionPtr;
+  
 
   typedef std::function< void( localmapdict& inputmaps, std::shared_ptr<FeatMapImplCollection>& outputcollection, void*& userdata, scratchmats& scratch, const std::map<std::string,std::string>& params, const uint64_t& curr_time, const std::string& nickname, const std::string& desc
 #ifdef GPU

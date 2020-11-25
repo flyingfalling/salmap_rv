@@ -189,23 +189,25 @@ std::shared_ptr<FeatMapImplInst> salmap_rv::get_from_collection_or_fail( std::sh
 
 
 
+
 double salmap_rv::pixval_from_slope( const int x, const double islope )
 {
+  
+  double ret = 0;
   if( islope < x )
     {
-      return 1;
+      ret = 1;
     }
-  else if( islope >= x && islope < x+1 ) 
+  else
     {
-      double wholepart = x+1 - islope;
-      double ypart = x/islope;
-      return ypart + (1-ypart)*(wholepart) + 0.5*(1-ypart)*(1-wholepart);
+      ret = (x+1)/(islope+1);
     }
-  else 
-    
-    {
-      return x/islope + 0.5 * 1/islope;
-    }
+
+  return ret;
+  
+  
+  
+   
 }
 
 
@@ -226,6 +228,30 @@ void salmap_rv::attenuation_filter_cpu_wid( const float64_t& wid, cv::InputArray
   if( w * 2 > in.size().width ) { w = in.size().width / 2; }
   if( w * 2 > in.size().height ) { w = in.size().height / 2; }
 
+#ifdef NAIVE_ATTEN
+
+  for( size_t x=0; x<w; ++x )
+    {
+      size_t right=out.size().width-(x+1);
+      size_t bot=out.size().height-(x+1);
+      
+
+      float64_t val = pixval_from_slope( x, w );
+      
+      out.col(x) = out.col(x) * val;
+      
+      
+      out.col(right) = out.col(right) * val;
+
+      
+      out.row(x) = out.row(x) * val;
+      
+      
+      out.row(bot) = out.row(bot) * val;
+    }
+
+#else
+  
   
   for( size_t x=0; x<w+1; ++x )
     {
@@ -239,6 +265,7 @@ void salmap_rv::attenuation_filter_cpu_wid( const float64_t& wid, cv::InputArray
   cv::multiply( out, ones, out );
   cv::flip( out, ones, -1 ); 
   cv::multiply( out, ones, out );
+#endif
 }
 
 void salmap_rv::attenuation_filter_cpu_prop( const float64_t& prop, cv::InputArray in, salmap_rv::FiltMat& out )
@@ -251,24 +278,7 @@ void salmap_rv::attenuation_filter_cpu_prop( const float64_t& prop, cv::InputArr
   size_t s = in.size().width > in.size().height ? in.size().width : in.size().height;
   float64_t w = (s * prop); 
   
-  
-  salmap_rv::FiltMat ones = salmap_rv::FiltMat::ones( in.size(), in.type() );
-  
-  ones.copyTo(out);
-  if( w * 2 > in.size().width ) { w = in.size().width / 2; }
-  if( w * 2 > in.size().height ) { w = in.size().height / 2; }
-  
-  DEBUGPRINTF(stdout, "Atten filt prop: w %lf\n", w);
-  for( size_t x=0; x<w+1; ++x )
-    {
-      
-      float64_t val = pixval_from_slope( x, w ); 
-      out.col(x).setTo( cv::Scalar(val ) );
-      ones.row(x).setTo( cv::Scalar( val ));
-    }
-  cv::multiply( out, ones, out );
-  cv::flip( out, ones, -1 ); 
-  cv::multiply( out, ones, out );
+  attenuation_filter_cpu_wid( w, in, out );
 }
 
 
@@ -696,9 +706,16 @@ float64_t salmap_rv::sigmaf_from_sigma( const float64_t sigma )
 }
 
 
+
+
 void salmap_rv::sigma_from_freq_modul( const float64_t targf, const float64_t targmodul,
 			    float64_t& retsig, float64_t& retsigf )
 {
+  if( targmodul >= 1 )
+    {
+      fprintf(stderr, "TARG MODUL can't be >= 1...will cause eror\n");
+      exit(1);
+    }
   retsigf = sqrt( -(targf*targf) / (2*log(targmodul) ) ); 
   retsig = sigma_from_sigmaf( retsigf ); 
 
@@ -1432,6 +1449,88 @@ void subsample_blur_downsize( const salmap_rv::FiltMat& i, salmap_rv::FiltMat& r
 			      const cv::Size& outsize, const float64_t xsigma_pix )
 {
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+void salmap_rv::set_filt_input( FeatFilter& f, grouped_input gi )
+{
+  
+  auto itr = f.inputs.find( gi.getfullname() );
+  if( itr != f.inputs.end() )
+    {
+      int64_t i=0;
+      std::string mystr = gi.getfullname() + std::to_string(i);
+      
+      while ( f.inputs.find( mystr ) != f.inputs.end() )
+	{
+	  ++i;
+	  mystr = gi.getfullname() + std::to_string(i);
+	}
+      
+      
+      fprintf(stdout, "Base case set_filt_input VALUE: [%s] (tag: [%s])\n", gi.value.c_str(), gi.getfullname().c_str() );
+      fprintf(stderr, "ERROR (warning?): you are attempting to overwrite an existing input in filter [%s] -- modifying input name to [%s]!!!\n",  gi.getfullname().c_str(), mystr.c_str());
+      f.inputs[ mystr ] = gi.value;
+    }
+  else
+    {
+      f.inputs[ gi.getfullname() ] = gi.value;
+    }
+}
+
+void salmap_rv::set_filt_param( FeatFilter& f, grouped_param gp )
+{
+  auto itr = f.params.find( gp.getfullname() );
+  if( itr != f.params.end() )
+    {
+      int64_t i=0;
+      std::string mystr = gp.getfullname() + std::to_string(i);
+      
+      while ( f.params.find( mystr ) != f.params.end() )
+	{
+	  ++i;
+	  mystr = gp.getfullname() + std::to_string(i);
+	}
+      
+      
+      fprintf(stdout, "Base case set_filt_param VALUE: [%s] (tag: [%s])\n", gp.value.c_str(), gp.getfullname().c_str() );
+      fprintf(stderr, "ERROR (warning?): you are attempting to overwrite an existing param in filter [%s] -- modifying param name to [%s]!!!\n",  gp.getfullname().c_str(), mystr.c_str());
+      f.params[ mystr ] = gp.value;
+      fprintf(stderr, "Yea, that should not happen. Exiting\n");
+      exit(1);
+    }
+  else
+    {
+      f.params[ gp.getfullname() ] = gp.value;
+    }
+  
+  
+  
+}
+
+void salmap_rv::set_filt_input_params( FeatFilter& f )
+{
+  
+  
+}
+
+ 
+
+ 
+
+
+
 
 
 

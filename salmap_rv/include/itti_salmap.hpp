@@ -9,6 +9,6 @@ namespace salmap_rv
 {
   param_set itti_formal_default_params();
   param_set itti_formal_1998_params( const int wid, const int fps );
-  void make_itti_dyadic_cpu_weighted_formal( const param_set& p, SalMap& mysalmap, std::shared_ptr<ThreadPool> _tp );
+  void make_itti_dyadic_cpu_weighted_formal(  const param_set& p, SalMap& mysalmap, std::shared_ptr<ThreadPool> _tp );
 }
 

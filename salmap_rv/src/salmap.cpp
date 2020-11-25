@@ -209,7 +209,18 @@ bool salmap_rv::SalMap::mapFromAccessor( FeatMapImplPtr& accessor, std::shared_p
     return accessor.getTo( ret, time );
   }
 
+void salmap_rv::SalMap::register_generator( const std::string& s, GeneratorCreatorFunctionPtr fp )
+{
+  if( generators.find(s) != generators.end() )
+    {
+      fprintf(stderr, "REV: generator registered [%s] already exists.\n", s.c_str() );
+      exit(1);
+    }
+  generators[s] = fp(); 
+}
 
+
+ 
 void salmap_rv::SalMap::register_algorithms()
   {
     if( true == registered_algos )
@@ -254,6 +265,32 @@ cv::Mat salmap_rv::SalMap::get_map_now_nickname( const std::string& filtername, 
 }
 
 
+std::map<std::string,std::string> salmap_rv::SalMap::get_params( const std::string& filternick )
+{
+  FeatFilterImpl* f;
+  bool got = filtimpls.getFilter( filternick, f );
+  if( false == got )
+    {
+      fprintf(stderr, "salmap, get_params failed for filter nick [%s]....\n", filternick.c_str() );
+      exit(1);
+    }
+
+  return f->get_params();
+}
+
+void salmap_rv::SalMap::set_param( const std::string& filternick, const std::string& fullparamname, const std::string& newval )
+{
+  FeatFilterImpl* f;
+  bool got = filtimpls.getFilter( filternick, f );
+  if( false == got )
+    {
+      fprintf(stderr, "salmap, set_params failed for filter nick [%s]....\n", filternick.c_str() );
+      exit(1);
+    }
+
+  f->set_param( fullparamname, newval );
+}
+
 
 void salmap_rv::SalMap::init( const param_set& p, std::shared_ptr<ThreadPool> _tp )
 {
@@ -288,9 +325,20 @@ void salmap_rv::SalMap::init( const param_set& p, std::shared_ptr<ThreadPool> _t
   time_idx = 0;
   trial_timesteps = 0; 
   dt_nsec = p.get<int64_t>("dt_nsec");
+
+  
+  
+  
   input_dva_wid = p.get<float64_t>("input_dva_wid");
   input_dva_hei = p.get<float64_t>("input_dva_hei");
-
+  
+  
+  
+  
+  
+  input_pix_per_dva = p.get<float64_t>("input_pix_per_dva");
+  
+  
   consolidate_filters = p.get<bool>("consolidate_filters");
 
   
@@ -424,6 +472,7 @@ void salmap_rv::SalMap::build_dependencies()
       
       for( auto iter = filtset.filters.begin(); iter != filtset.filters.end(); ++iter )
 	{
+	  
 	  auto impliter = filtimpls.addFilter( iter->second, algimpls );
 	  iter->second.setImplIter( impliter );
 	}
@@ -439,7 +488,7 @@ void salmap_rv::SalMap::build_dependencies()
       trial_timesteps = max_stepdelta;
       HELPPRINTF(stdout, "Setting # trial timesteps to [%ld]\n", max_stepdelta );
 
-#if HELPLEVEL > 10
+#ifdef PRINTTAGGRAPH
       std::string graphfile = "salgraph.gv";
       HELPPRINTF(stdout, "Printing graph description to file [%s]\n", graphfile.c_str() );
       filtergraph.deps.print_deps();
@@ -563,11 +612,22 @@ void salmap_rv::SalMap::set_copy_realtime(const std::string& localname, const cv
 
 
 
+
+
+
+
+
+
 void salmap_rv::SalMap::setup_input( const std::string& localname, const cv::Mat& data )
 {
   
   auto it = ptroriginputs.find( localname );
   DEBUGPRINTF(stdout, "Will try to add input...[%s]?\n", localname.c_str());
+
+  
+  
+  
+  
     
   
   if( it == ptroriginputs.end() )
@@ -575,22 +635,42 @@ void salmap_rv::SalMap::setup_input( const std::string& localname, const cv::Mat
       
       
       compile_orig_input(localname);
-	
+      
       ptroriginputs[ localname ] = FeatMapImplPtr( localname, compiled_input.m.toString(), filtimpls, filtset, mapimpls ); 
       
       float64_t origaspect_wh = (float64_t)data.size().width/data.size().height;
-      if( input_dva_wid <= 0 && input_dva_hei <= 0 )
+
+      
+      if( input_pix_per_dva > 0 )
 	{
-	  fprintf(stderr, "REV: attempting to add_input (setup_input), but dva of wid %d / hei %d is 0? (note these are salmap class members)\n", input_dva_wid, input_dva_hei );
+	  input_dva_wid = data.size().width / input_pix_per_dva;
+	  input_dva_hei = data.size().height / input_pix_per_dva;
+	  fprintf(stdout, "Setting width/height DVA to [%lf / %lf] using input PIX/DVA [%lf] (overwriting provided wid/hei values if they existed)\n", input_dva_wid, input_dva_hei, input_pix_per_dva );
 	}
-      else if( input_dva_hei <= 0 )
+
+      
+      if( 0 >= input_dva_wid &&
+	  0 >= input_dva_hei )
+	{
+	  if( input_pix_per_dva <= 0 )
+	    {
+	      fprintf(stderr, "REV: ERROR, input pix/dva is <= 0 [%lf] even though hei/wid dva is not set... (dva-wid %lf  dva-hei %lf)\n", input_pix_per_dva, input_dva_wid, input_dva_hei );
+	      exit(1);
+	    }
+	  
+	  
+	  input_dva_wid = data.size().width / input_pix_per_dva;
+	  input_dva_hei = data.size().height / input_pix_per_dva;
+	  fprintf(stdout, "Setting width/height DVA to [%lf / %lf] using input PIX/DVA [%lf]\n", input_dva_wid, input_dva_hei, input_pix_per_dva );
+	}
+      else if( 0 >= input_dva_hei ) 
 	{
 	  
 	  float64_t ratio_hw = (float64_t)data.size().height / data.size().width;
 	  input_dva_hei = input_dva_wid * ratio_hw;
 	  fprintf(stdout, "First input of [%s]: modifying input_dva_hei to [%lf] based on h/w pixel ratio of [%lf]\n", localname.c_str(), input_dva_hei, ratio_hw );
 	}
-      else if( input_dva_wid <= 0 )
+      else if( 0 >= input_dva_wid ) 
 	{
 	  float64_t ratio_wh = (float64_t)data.size().width / data.size().height;
 	  input_dva_wid = input_dva_hei * ratio_wh;
@@ -628,7 +708,7 @@ void salmap_rv::SalMap::setup_input( const std::string& localname, const cv::Mat
 	}
     }
   
-}
+} 
 
 
 
@@ -1026,77 +1106,6 @@ bool salmap_rv::SalMap::update( const int64_t& dt_in_nsec )
 
 
 
-
-void salmap_rv::SalMap::set_filt_input_param( FeatFilter& f, const std::string& argstr ) 
-{
-  
-  auto tokenized = tokenize_string( argstr, ":", true );
-  if( tokenized.size() > 0 )
-    {
-      
-      std::string type = tokenized[0];
-      std::string second = CONCATENATE_STR_ARRAY( tokenized, ":", 1 );
-      tokenized = tokenize_string( second, "=", true );
-      if( tokenized.size() > 0 )
-	{
-	  std::string localname = tokenized[0];
-	  std::string value = CONCATENATE_STR_ARRAY( tokenized, "=", 1 );
-	  if( same_string( type, "param" ) )
-	    {
-	      auto iter = f.params.find( localname );
-	      if( iter == f.params.end() )
-		{
-		  f.params[localname] = value;
-		}
-	      else
-		{
-		  fprintf(stderr, "doubling param localnames... [%s]\n", localname.c_str());
-		  exit(1);
-		}
-	    }
-	  else if( same_string( type, "input" ) )
-	    {
-	      auto iter = f.inputs.find( localname );
-	      if( iter == f.inputs.end() )
-		{
-		  DEBUGPRINTF(stdout, "Setting filter input to : [%s]\n", value.c_str());
-		  f.inputs[localname] = value; 
-		}
-	      else
-		{
-		  fprintf(stderr, "doubling input localnames... [%s]\n", localname.c_str());
-		  exit(1);
-		}
-	    }
-	  else
-	    {
-	      fprintf(stderr, "unrecognized type of input [%s]\n", type.c_str() );
-	      exit(1);
-	    }
-	}
-      else
-	{
-	  fprintf(stderr, "Should be input|param:localname=value (this is part after :) [%s]\n", second.c_str());
-	  exit(1);
-	}
-    }
-  else
-    {
-      fprintf(stderr, "Should be input|param:localname=value [%s]\n", argstr.c_str());
-      exit(1);
-    }
-      
-} 
-
-void salmap_rv::SalMap::set_filt_input_param( FeatFilter& f,  const std::vector<std::string>& argvec )
-{
-  
-  for( auto& argstr : argvec )
-    {
-      set_filt_input_param(f, argstr);
-    }
-} 
-
   
 
   
@@ -1229,4 +1238,160 @@ const bool salmap_rv::SalMap::was_updated() const
 {
   return successfully_updated;
 }
-  
+
+
+const double salmap_rv::SalMap::get_input_pix_per_dva_wid() const
+{
+  return input_dva_wid;
+}
+
+const double  salmap_rv::SalMap::get_input_pix_per_dva_hei() const
+{
+  return input_dva_hei;
+}
+
+const double  salmap_rv::SalMap::get_input_pix_per_dva() const
+{
+  return input_pix_per_dva;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

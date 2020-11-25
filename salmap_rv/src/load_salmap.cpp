@@ -30,11 +30,11 @@ std::list<std::string> salmap_rv::salmap_loader::get_avail_maps() {
     selected_salmap_name = "";
     avail_maps.clear();
   }
-void salmap_rv::salmap_loader::init( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp ) {
+void salmap_rv::salmap_loader::init( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp, const std::string& param_fname ) {
     selected_salmap = NULL;
     selected_salmap_name = "";
     avail_maps.clear();
-    register_default_salmaps(nworkers, dt_nsec, dva_per_pix, tp );
+    register_default_salmaps(nworkers, dt_nsec, dva_per_pix, tp, param_fname );
   }
 void salmap_rv::salmap_loader::select_salmap( const std::string& name ) {
     if( avail_maps.find( name ) == avail_maps.end() )
@@ -48,16 +48,22 @@ void salmap_rv::salmap_loader::select_salmap( const std::string& name ) {
 	selected_salmap = &( avail_maps[name] ); 
       }
   }
-void salmap_rv::salmap_loader::register_default_salmaps( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp ) {
+void salmap_rv::salmap_loader::register_default_salmaps( const size_t& nworkers, const uint64_t& dt_nsec, const float64_t& dva_per_pix, std::shared_ptr<ThreadPool> tp, const std::string& param_fname ) {
     fprintf(stdout, "Registering default salmaps\n");
 
     std::string mystring = "Default"; 
     avail_maps[ mystring ] = SalMap();
     
     param_set p = itti_formal_default_params(); 
+
+    if( false == param_fname.empty() )
+      {
+	p.fromfile( param_fname );
+      }
     p.set<float64_t>( "input_dva_per_pix", dva_per_pix );
     p.set<int64_t>( "dt_nsec", dt_nsec );
     p.set<int64_t>("nsalthreads", nworkers );
+    p.set<float64_t>("input_dva_wid", 82.0); 
     
     make_itti_dyadic_cpu_weighted_formal( p, avail_maps[mystring], tp );
 #ifdef GPU

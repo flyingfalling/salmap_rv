@@ -14,6 +14,7 @@ std::vector<std::string> names;
 
 std::shared_ptr<FeatMapImplInst> output = GETOUTPUT("output");
 
+
   
 
 
@@ -33,12 +34,30 @@ for( auto iter=inputmaps.begin(); iter != inputmaps.end(); ++iter )
 
 
 
+
+
+
 inputs[0]->resizeToCpuOnly( output, s, itype, dtype );
+
+
+
+
+
+
+
 
 for( size_t x=1; x<inputs.size(); ++x )
   {
+    
     inputs[x]->resizeToCpuOnly( scratch.get_w("tmp"), s, itype, dtype );
+
+    
+    
+    
+    
     cv::add( output->cpu(), scratch.cpu("tmp"), output->cpu_w() );
+    
+    
   }
 
 cv::divide( output->cpu(), (float64_t)inputs.size(), output->cpu_w() );
